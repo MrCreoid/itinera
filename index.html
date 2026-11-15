@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Itinera · Museum Visit Planner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- icon sprite: <svg class="icon"><use href="#i-name"/></svg> -->
+  <svg width="0" height="0" class="sprite" aria-hidden="true">
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+    <symbol id="i-walk" viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="1.8"/><path d="M9 21l2.5-6.5 3 3V21M7.5 12l3-4.5 4 1.5 2 3.5M11.5 14.5l-1-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></symbol>
+    <symbol id="i-restart" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v3.7h3.7"/></symbol>
+    <symbol id="i-temple" viewBox="0 0 24 24"><path d="M4 20h16M5 9h14M12 4l8 5H4z"/><path d="M7 9v11M12 9v11M17 9v11"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.6-1-2.6 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/></symbol>
+    <symbol id="i-shapes" viewBox="0 0 24 24"><circle cx="7.5" cy="7.5" r="3.5"/><rect x="13" y="13" width="7" height="7" rx="1"/><path d="M17 3.5l3.5 6h-7z"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></symbol>
+    <symbol id="i-brush" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-8 8-5-5z"/><path d="M6.5 12.5L4 20l7.5-2.5"/></symbol>
+    <symbol id="i-cup" viewBox="0 0 24 24"><path d="M5 9h12v4a6 6 0 0 1-12 0zM17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 3v3M11 3v3M14 3v3"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a href="#top" class="brand">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M7 24c0-6 4-7 9-8s9-3 9-8" />
+          <circle cx="7" cy="24" r="3.2" />
+          <circle cx="25" cy="8" r="3.2" />
+        </svg>
+        Itinera
+      </a>
+      <nav>
+        <a href="#map">Map</a>
+        <a href="#planner">Planner</a>
+        <a href="#activities">Activities</a>
+        <a href="#learn">Algorithms</a>
+      </nav>
+      <span id="sys" class="sys" aria-hidden="true"></span>
+      <a href="#planner" class="btn btn-small nav-cta">Plan my visit</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section id="map" class="container intro">
+      <div class="intro-text">
+        <h1>Plan a museum visit around the time you have.</h1>
+        <p class="lead">Pick when you arrive, how long you can stay and what you like. The planner chooses
+          activities, orders them to cut walking, then replays every decision it made.</p>
+        <div class="hours">
+          <span class="hours-label">Opening hours</span>
+          <strong><span id="open-time">10:00</span> – <span id="close-time">18:00</span></strong>
+          <span class="hours-note">Last entry 30 min before closing</span>
+        </div>
+        <ul class="legend">
+          <li><span class="key key-start"></span>Click rooms in order: each click finds the shortest path from your last stop</li>
+          <li><span class="key key-door">3</span>While it searches, each room shows its minutes from the last stop</li>
+          <li><span class="key key-visit"></span>Corridors carry one dot per walking minute</li>
+        </ul>
+        <a href="#planner" class="btn">Start planning <svg class="icon"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="map-card">
+          <canvas id="museum-canvas" aria-label="Museum map: click rooms in order to route between them"></canvas>
+        <div class="trip">
+          <output id="trip-total">0 min</output>
+          <p id="map-hint" class="map-hint"></p>
+          <button type="button" id="trip-reset" class="btn btn-ghost btn-small">Reset</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="planner" class="planner-band">
+      <div class="container">
+        <div class="section-head">
+          <h2>Plan your visit</h2>
+        </div>
+
+        <form id="plan-form" class="planner" novalidate>
+          <fieldset class="step">
+            <legend><span class="step-no">1</span>When are you visiting?</legend>
+            <label class="field">
+              <span class="field-label">Arrival time at the main entrance</span>
+              <select id="start-time"></select>
+            </label>
+            <label class="field">
+              <span class="field-label">Time you have <output id="hours-out">6h</output></span>
+              <input type="range" id="hours" min="0.5" max="8" step="0.5" value="6">
+              <span id="leave-by" class="field-hint">You'll leave by 16:00</span>
+            </label>
+            <div class="field">
+              <label class="field-label" for="break">Café break</label>
+              <div class="break-row">
+                <select id="break" aria-label="Café break"></select>
+                <select id="break-time" aria-label="Break time" hidden></select>
+              </div>
+              <span class="field-hint">Kept at the time you pick; every plan is built around it.</span>
+            </div>
+          </fieldset>
+
+          <fieldset class="step">
+            <legend><span class="step-no">2</span>What interests you?</legend>
+            <div id="category-list" class="chips"></div>
+            <p class="field-hint">Pick one or more. Rate single activities in <a href="#activities">Activities</a>.</p>
+          </fieldset>
+
+          <fieldset class="step step-wide">
+            <legend><span class="step-no">3</span>How should we plan?</legend>
+            <div class="choices">
+              <label class="choice"><input type="radio" name="algo" value="hybrid" checked>
+                <b>Best overall plan</b><small>Weighs every combination to collect the most of what you love.</small>
+                <span class="algo-line">0/1 knapsack DP → weighted interval scheduling → Dijkstra</span></label>
+              <label class="choice"><input type="radio" name="algo" value="greedy_score">
+                <b>Favourites first</b><small>Starts with your top-rated activities, then fills in.</small>
+                <span class="algo-line">Greedy, sorted by score → Dijkstra</span></label>
+              <label class="choice"><input type="radio" name="algo" value="greedy_ratio">
+                <b>See as much as possible</b><small>Prefers shorter visits so you fit more in.</small>
+                <span class="algo-line">Greedy, sorted by score per minute → Dijkstra</span></label>
+            </div>
+          </fieldset>
+
+          <div class="submit-row">
+            <p id="form-error" class="alert" role="alert" hidden></p>
+            <button type="submit" class="btn btn-large">Create my itinerary <svg class="icon"><use href="#i-arrow"/></svg></button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="walk" class="night" hidden>
+      <div class="container">
+        <div class="night-head">
+          <h2>Your day, walked</h2>
+          <p class="night-sub">The planner has already picked your stops. Here a visitor follows them in order: each walk is the Dijkstra shortest path through the corridors, and a room lifts and turns terracotta while its activity adds points.</p>
+        </div>
+        <div class="night-stage">
+          <canvas id="walk-canvas" aria-label="Animated walk through the museum"></canvas>
+          <div class="night-hud">
+            <div class="clock"><span id="walk-clock">10:00</span><small id="walk-status"></small></div>
+            <div class="night-controls">
+              <button type="button" id="walk-play" class="ctl ctl-main" aria-label="Pause"><svg class="icon"><use href="#i-stop"/></svg></button>
+              <button type="button" id="walk-restart" class="ctl" aria-label="Replay"><svg class="icon"><use href="#i-restart"/></svg></button>
+            </div>
+          </div>
+          <div class="night-track"><span id="walk-progress"></span></div>
+        </div>
+        <ul class="scene-legend">
+          <li><i style="--c: #3d2f2a"></i>Dark dot and dashes: the visitor and the route walked</li>
+          <li><i style="--c: #fbf5ee; --b: #b85c36"></i>Terracotta outline and number: room chosen, in stop order</li>
+          <li><i style="--c: #b85c36"></i>Solid terracotta, lifted: activity running now. Pale ✓ when done</li>
+          <li><i style="--c: #fbf5ee; --b: #3d2f2a"></i>Sage outline: room not in the plan</li>
+          <li>Each dot in a corridor is one walking minute; a terracotta corridor has been walked</li>
+        </ul>
+        <ol id="walk-stops" class="walk-stops"></ol>
+      </div>
+    </section>
+
+    <section id="terrain" class="night" hidden>
+      <div class="container">
+        <div class="night-head">
+          <h2>The knapsack landscape</h2>
+          <p class="night-sub">How "Best overall plan" chooses. Step 1: the table fills, one ridge per activity, left to right is minutes of budget,
+            height is the best score reachable. Step 2: a light starts at the highest point and walks back, ridge by ridge, deciding take or skip.</p>
+        </div>
+        <div class="night-stage terrain-stage">
+          <canvas id="terrain-canvas" aria-label="3D knapsack table"></canvas>
+          <div class="night-hud">
+            <div class="clock"><span id="terrain-readout">dp[0][0]</span><small id="terrain-status"></small></div>
+            <div class="night-controls">
+              <button type="button" id="terrain-play" class="ctl ctl-main" aria-label="Pause"><svg class="icon"><use href="#i-stop"/></svg></button>
+              <button type="button" id="terrain-restart" class="ctl" aria-label="Replay"><svg class="icon"><use href="#i-restart"/></svg></button>
+            </div>
+          </div>
+          <p class="drag-hint">Drag to orbit</p>
+        </div>
+        <ul class="scene-legend">
+          <li><i style="--c: #c9d8c4; --b: #3d2f2a"></i>Ridge: one activity's row of the DP table</li>
+          <li><i style="--c: #3d2f2a"></i>Dark line: the backtrack retracing the best answer</li>
+          <li><i style="--c: #b85c36"></i>✓ Taken: the score rose because of this activity</li>
+          <li><i style="--c: #f3e9df; --b: #d3c4b8"></i>✕ Skipped: same score without it</li>
+        </ul>
+        <ol id="terrain-picks" class="terrain-picks"></ol>
+      </div>
+    </section>
+
+    <section id="results" class="container section" hidden>
+      <div class="section-head">
+        <h2>Your itinerary</h2>
+        <p id="result-title" class="lead-sm"></p>
+      </div>
+      <div id="totals" class="metrics"></div>
+
+      <div id="no-plan" class="empty" hidden>
+        <svg class="icon"><use href="#i-alert"/></svg>
+        <b>No activity fits these settings</b>
+        <span>Add more time, arrive earlier or turn on more interests.</span>
+        <a href="#planner" class="btn btn-ghost btn-small">Adjust plan</a>
+      </div>
+
+      <div id="plan-body" class="plan-layout">
+        <ol id="timeline" class="timeline"></ol>
+        <aside class="plan-side">
+          <div class="panel">
+            <h3>Route</h3>
+            <ol id="route-summary" class="route-chain"></ol>
+            <a href="#map" class="text-link">See it on the map</a>
+          </div>
+          <details id="left-out" class="panel">
+            <summary></summary>
+            <ul></ul>
+          </details>
+          <a href="#planner" class="btn btn-ghost btn-block">Change inputs</a>
+        </aside>
+      </div>
+    </section>
+
+    <section id="compare" class="container section" hidden>
+      <div class="section-head">
+        <h2>Compare the plans</h2>
+        <p class="lead-sm">Same inputs, three planning styles. Every plan is checked for time, clashes and walking.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="compare-table" class="table"></table>
+      </div>
+      <p id="compare-note" class="note"></p>
+    </section>
+
+    <section id="activities" class="container section">
+      <div class="section-head">
+        <h2>Activities</h2>
+        <p class="lead-sm">Set how much you want each one. Activities outside your interests are dimmed.</p>
+      </div>
+      <div id="activity-list" class="activity-grid"></div>
+    </section>
+
+    <section id="learn" class="band">
+      <div class="container">
+        <div class="section-head">
+          <h2>Algorithms</h2>
+          <p class="lead-sm">What runs behind each planning style, using this museum's data.</p>
+        </div>
+
+        <div class="algo-grid">
+          <article class="algo-card">
+            <span class="algo-tag">Favourites first · See as much as possible</span>
+            <h3>Greedy</h3>
+            <p>Takes the best-scoring activity that still fits. Never revisits a choice.</p>
+            <div class="viz">
+              <div class="viz-caption">60 minutes to fill</div>
+              <div class="blocks">
+                <span class="block picked" style="flex: 45">Renaissance · 8</span>
+                <span style="flex: 15"></span>
+              </div>
+              <div class="blocks">
+                <span class="block" style="flex: 40">Modern Art · 7</span>
+                <span class="block" style="flex: 20">Light · 5</span>
+              </div>
+              <div class="viz-caption">Greedy scores <b>8</b>; the pair below would score <b>12</b>.</div>
+            </div>
+            <dl class="cx"><dt>Time</dt><dd>O(n log n) sort · O(n³) with fit checks</dd><dt>Space</dt><dd>O(n)</dd></dl>
+          </article>
+
+          <article class="algo-card">
+            <span class="algo-tag">Best overall plan</span>
+            <h3>Dynamic Programming</h3>
+            <p>0/1 knapsack: best score for every time budget, built row by row.</p>
+            <div class="viz">
+              <table class="dp-grid">
+                <tr><th></th><th>20</th><th>40</th><th>45</th><th>60</th></tr>
+                <tr><th>Renaissance</th><td>0</td><td>0</td><td>8</td><td>8</td></tr>
+                <tr><th>+ Modern Art</th><td>0</td><td>7</td><td>8</td><td>8</td></tr>
+                <tr><th>+ Light</th><td>5</td><td>7</td><td>8</td><td class="hit">12</td></tr>
+              </table>
+              <div class="viz-caption">Columns are minutes. Answer: <b>12</b> at 60 min.</div>
+            </div>
+            <dl class="cx"><dt>Time</dt><dd>O(n · T)</dd><dt>Space</dt><dd>O(n · T)</dd></dl>
+          </article>
+
+          <article class="algo-card">
+            <span class="algo-tag">Best overall plan</span>
+            <h3>Weighted Interval Scheduling</h3>
+            <p>Picks the highest-value set of timed tours that never overlap.</p>
+            <div class="viz">
+              <div class="lanes">
+                <div class="axis"><span>10:30</span><span>11:00</span><span>11:30</span><span>12:00</span><span>12:30</span></div>
+                <div class="lane"><span class="slot picked" style="left: 0; width: 37.5%">Mummies · 9</span></div>
+                <div class="lane"><span class="slot" style="left: 25%; width: 33.3%">Dinosaurs · 8</span></div>
+                <div class="lane"><span class="slot picked" style="left: 50%; width: 33.3%">Knights · 8</span></div>
+                <div class="lane"><span class="slot" style="left: 75%; width: 25%">Coins · 6</span></div>
+              </div>
+              <div class="viz-caption">Kept: 9 + 8 = <b>17</b>, no overlaps.</div>
+            </div>
+            <dl class="cx"><dt>Time</dt><dd>O(n log n)</dd><dt>Space</dt><dd>O(n)</dd></dl>
+          </article>
+
+          <article class="algo-card">
+            <span class="algo-tag">Every plan</span>
+            <h3>Dijkstra's Shortest Path</h3>
+            <p>Rooms are nodes, doorways are edges weighted by walking minutes.</p>
+            <div class="viz">
+              <div class="path-chain">
+                <span class="node">Café</span><i>2</i><span class="node">Entrance</span><i>2</i>
+                <span class="node">Atrium</span><i>2</i><span class="node">Renaissance</span><i>2</i><span class="node">Modern Art</span>
+              </div>
+              <div class="viz-caption">Café to Modern Art Wing: <b>8 min</b>.</div>
+            </div>
+            <form id="route-form" class="route-form">
+              <select id="route-from" aria-label="From room"></select>
+              <select id="route-to" aria-label="To room"></select>
+              <button type="submit" class="btn btn-small">Find</button>
+            </form>
+            <p id="route-result" class="route-result"></p>
+            <dl class="cx"><dt>Time</dt><dd>O((V + E) log V)</dd><dt>Space</dt><dd>O(V + E)</dd></dl>
+          </article>
+
+          <article class="algo-card">
+            <span class="algo-tag">Best overall plan</span>
+            <h3>Sorting and Binary Search</h3>
+            <p>Tours sorted by finish time; binary search finds the last one ending before a start.</p>
+            <div class="viz">
+              <div class="viz-caption">Finish times · target: Knights starts 11:30</div>
+              <div class="cells">
+                <span class="hit">11:15</span><span>11:40</span><span>12:10</span><span>12:30</span>
+              </div>
+              <div class="viz-caption">p(Knights) = Mummies tour, in O(log n) steps.</div>
+            </div>
+            <dl class="cx"><dt>Sort</dt><dd>O(n log n)</dd><dt>Search</dt><dd>O(log n), O(1) space</dd></dl>
+          </article>
+
+          <article class="algo-card algo-note">
+            <h3>Why the three plans differ</h3>
+            <p>Choosing and ordering activities with walking times and fixed tour slots is NP-hard. DP and WIS are exact
+              for their parts; greedy is a fast approximation. Compare them on your own plan above.</p>
+            <details>
+              <summary>All doorways</summary>
+              <ul id="path-list" class="path-list"></ul>
+            </details>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <span>Itinera · ADA Project</span>
+    <span>Pratyush Garg &amp; Priyansha Soni · CSE-A2</span>
+  </footer>
+  <script src="script.js"></script>
+</body>
+</html>
