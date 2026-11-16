@@ -47,6 +47,13 @@ def read_plan(data):
             raise ValueError("Priorities must be whole numbers from 0 to 3.")
         priority[int(key)] = value
 
+    shop_last = data.get("shop_last", False)
+    if not isinstance(shop_last, bool):
+        raise ValueError("shop_last must be true or false.")
+    reserve = algorithms.shop_reserve(start_loc) if shop_last else 0
+    if reserve > minutes:
+        raise ValueError("There is not enough time to end at the Museum Shop.")
+
     pause = None
     raw = data.get("break")
     if raw is not None:
@@ -55,11 +62,11 @@ def read_plan(data):
         act = algorithms.ACTIVITIES[raw["id"] - 1]
         at = algorithms.to_min(raw.get("time", ""))
         walk_in = algorithms.ROUTES[(start_loc, act["location"])][0]
-        if at < start_time + walk_in or at + act["duration"] + walk_in > start_time + minutes:
+        if at < start_time + walk_in or at + act["duration"] + walk_in > start_time + minutes - reserve:
             raise ValueError("Your café break does not fit inside your visit. Pick another time.")
         pause = (raw["id"], at)
 
-    return start_loc, start_time, minutes, priority, categories, pause
+    return start_loc, start_time, minutes, priority, categories, pause, shop_last
 
 
 class Handler(BaseHTTPRequestHandler):

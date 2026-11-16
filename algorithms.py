@@ -78,6 +78,7 @@ for i, (name, cat, loc, dur, start, score) in enumerate(DATA, 1):
 
 # activities a visitor can pin to a time of their choice as a meal break
 BREAKS = [a["id"] for a in ACTIVITIES if a["location"] == "Museum Café"]
+SHOP = next(a["id"] for a in ACTIVITIES if a["name"] == "Museum Shop")
 
 GRAPH = {loc: [] for loc in LOCATIONS}
 for a, b, w in PATHS:
@@ -219,10 +220,10 @@ def simulate(order, start_loc, start_time):
     return time, steps
 
 
-def build_itinerary(acts, start_loc, start_time, limit):
-    # Insert activities one by one at the position with the least total walking
-    # (then earliest finish); skip any activity that cannot be placed validly.
-    order, missed = [], []
+def build_itinerary(acts, start_loc, start_time, limit, order=()):
+    # Insert activities one by one (into `order`, if given) at the position with the least
+    # total walking (then earliest finish); skip any activity that cannot be placed validly.
+    order, missed = list(order), []
     for act in acts:
         best = None
         for pos in range(len(order) + 1):
@@ -252,6 +253,7 @@ def summarize(order, start_loc, start_time, minutes):
             "score": sum(s["value"] for s in steps), "activity": activity, "travel": travel,
             "wait": used - activity - travel, "used": used, "budget": minutes,
             "exit": ROUTES[(order[-1]["location"], start_loc)][0] if order else 0,  # walk back to the door
+            "exit_route": ROUTES[(order[-1]["location"], start_loc)][1] if order else [],
         },
     }
 
@@ -296,24 +298,59 @@ def plan_hybrid(cands, start_loc, start_time, minutes, must):
     return plan
 
 
-def make_plans(start_loc, start_time, minutes, priority, categories, pause=None):
+def as_acts(plan):
+    return [dict(s, start=s["start"] if s["fixed"] else None) for s in plan["items"]]
+
+
+def shop_reserve(start_loc):
+    # minutes kept aside for the shop at the end: its visit plus the walk there and back to the door
+    # (by the triangle inequality this always covers going last stop -> shop -> door)
+    shop = ACTIVITIES[SHOP - 1]
+    return shop["duration"] + ROUTES[(start_loc, shop["location"])][0] + ROUTES[(shop["location"], start_loc)][0]
+
+
+def fill_free_time(plan, extra, start_loc, start_time, minutes):
+    # Interests come first: keep the plan as it is and only add activities from the
+    # visitor's other interests into the time that is still free. None if none fit.
+    base = as_acts(plan)
+    order, _ = build_itinerary(greedy_order(extra, False), start_loc, start_time, start_time + minutes, base)
+    if len(order) == len(base):
+        return None
+    filled = summarize(order, start_loc, start_time, minutes)
+    ids = {a["id"] for a in base}
+    filled["added"] = [a["id"] for a in order if a["id"] not in ids]
+    filled["left_out"] = plan["left_out"]
+    if "dp" in plan:
+        filled["dp"], filled["dropped"] = plan["dp"], plan["dropped"]
+    return filled
+
+
+def make_plans(start_loc, start_time, full_minutes, priority, categories, pause=None, shop_last=False):
     # pause = (activity id, minute of day): a café break the visitor asked for at that time.
     # It becomes a fixed event that every plan must contain.
+    # shop_last: end the visit at the Museum Shop. Its time (and the walk there and back) is kept
+    # aside, the plans are built in what is left, and the shop is added as the last stop.
+    minutes = full_minutes - (shop_reserve(start_loc) if shop_last else 0)
     limit = start_time + minutes
     must = []
     if pause:
         act = ACTIVITIES[pause[0] - 1]
         must = [dict(act, value=act["score"] * (priority.get(act["id"], 2) or 2),
                      start=pause[1], end=pause[1] + act["duration"])]
-    cands, outside = [], []
+    cands, outside, extra = [], [], []  # extra: fits the visit but not the chosen interests
     for act in ACTIVITIES:
         weight = priority.get(act["id"], 2)
         if must and act["id"] in BREAKS:
             continue  # the pinned break replaces the café's other entries: no coffee right before lunch
-        if weight == 0 or act["category"] not in categories:
+        if weight == 0 or (shop_last and act["id"] == SHOP):
             continue
         act = dict(act, value=act["score"] * weight)
-        if act["start"] is None:
+        if act["category"] not in categories:
+            if act["start"] is None or (not (must and act["start"] < must[0]["end"] and act["end"] > must[0]["start"])
+                                        and start_time <= act["start"] and act["end"] <= limit
+                                        and start_time + ROUTES[(start_loc, act["location"])][0] <= act["start"]):
+                extra.append(act)
+        elif act["start"] is None:
             cands.append(act)
         elif must and act["start"] < must[0]["end"] and act["end"] > must[0]["start"]:
             outside.append({"name": act["name"], "reason": "Clashes with your café break"})
@@ -331,6 +368,13 @@ def make_plans(start_loc, start_time, minutes, priority, categories, pause=None)
     }
     for plan in plans.values():
         plan["left_out"] = outside + plan["left_out"]
+        plan["fill"] = fill_free_time(plan, extra, start_loc, start_time, minutes)
+        if shop_last:
+            shop = ACTIVITIES[SHOP - 1]
+            last = dict(shop, value=shop["score"] * (priority.get(SHOP, 2) or 2))
+            for p in (plan, plan["fill"]):
+                if p:
+                    p.update(summarize(as_acts(p) + [last], start_loc, start_time, full_minutes))
     candidates = [{"id": a["id"], "name": a["name"], "location": a["location"], "duration": a["duration"],
                    "value": a["value"], "start": a["start"], "end": a["end"]} for a in cands]
     return {"start_time": start_time, "candidates": candidates, "plans": plans}

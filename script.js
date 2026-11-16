@@ -132,7 +132,8 @@ function updateTimeLimit() {
   if (!act) return;
   const want = pick.value ? toMin(pick.value) : 13 * 60;
   let options = "", nearest = null;
-  for (let t = start + 30; t + act.duration + 5 <= start + minutes; t += 30) {
+  const shop = byId("shop-last").checked ? data.activities.find(a => a.name === "Museum Shop").duration : 0;
+  for (let t = start + 30; t + act.duration + 5 + shop <= start + minutes; t += 30) {
     options += `<option>${fmt(t)}</option>`;
     if (nearest === null || Math.abs(t - want) < Math.abs(nearest - want)) nearest = t;
   }
@@ -199,6 +200,7 @@ async function generatePlan(event) {
     start_location: START_ROOM,
     categories: checkedCategories(),
     priority: priority,
+    shop_last: byId("shop-last").checked,
   };
   if (byId("break").value) {
     if (!byId("break-time").value) {
@@ -252,14 +254,25 @@ function showItinerary() {
   byId("results").hidden = false;
   byId("result-title").textContent = `${PLAN_NAMES[chosenAlgo]}, starting ${fmt(result.start_time)}.`;
 
-  const usedPct = Math.round(100 * t.used / t.budget);
+  const usedPct = Math.round(100 * (t.used + t.exit) / t.budget);
   byId("totals").innerHTML =
     metric("Activities", plan.items.length) +
     metric("Activity time", duration(t.activity)) +
-    metric("Walking", duration(t.travel)) +
-    metric("Time used", `${duration(t.used)} <small>/ ${duration(t.budget)}</small>`,
+    metric("Walking", duration(t.travel + t.exit)) +
+    metric("Time used", `${duration(t.used + t.exit)} <small>/ ${duration(t.budget)}</small>`,
       `<div class="bar"><span style="width: ${usedPct}%"></span></div>`) +
     metric("Preference score", t.score, "", "metric highlight");
+
+  // interests are planned first; offer activities from other interests for the time still free
+  byId("free-time").hidden = !plan.fill;
+  if (plan.fill) {
+    const added = plan.fill.added.map(id => data.activities[id - 1]);
+    const cats = [...new Set(added.map(a => a.category))].join(", ");
+    byId("free-time").querySelector("p").innerHTML = (hasPlan
+      ? `<b>You still have ${duration(t.budget - t.used - t.exit)} free.</b> Nothing else from your interests fits, but from ${cats} you could add: `
+      : `<b>Nothing from your interests fits.</b> From ${cats} you could do: `)
+      + added.map(a => a.name).join(", ") + ".";
+  }
 
   byId("totals").hidden = !hasPlan;
   byId("no-plan").hidden = hasPlan;
@@ -291,9 +304,12 @@ function showItinerary() {
       </li>`;
     clock = step.end;
   }
-  if (t.exit > 0) {
-    html += `<li class="gap">${icon("walk")}${t.exit} min walk back to the entrance · out by ${fmt(clock + t.exit)}</li>`;
-  }
+  html += t.exit > 0
+    ? `<li class="gap">${icon("walk")}${t.exit} min walk to the exit · ${t.exit_route.join(" → ")}</li>`
+    : "";
+  html += `<li class="stop exit"><div class="stop-time"><b>${fmt(clock + t.exit)}</b></div>
+    <div class="stop-card"><span class="cat-icon">${icon("pin")}</span><div><b>Exit</b>
+      <div class="meta"><span>${icon("pin")}${START_ROOM}</span></div></div></div></li>`;
   byId("timeline").innerHTML = html;
 
   let route = `<li>${plan.items[0].route[0]} <small>start</small></li>`;
@@ -304,6 +320,7 @@ function showItinerary() {
       lastRoom = step.location;
     }
   }
+  route += `<li>Exit <small>${fmt(clock + t.exit)}</small></li>`;
   byId("route-summary").innerHTML = route;
 
   const left = byId("left-out");
@@ -338,8 +355,8 @@ function showComparison() {
       <td class="plan-name"><b>${PLAN_NAMES[key]}</b>${selected ? '<span class="tag">Selected</span>' : ""}<small>${ALGO_NAMES[key]}</small></td>
       <td><div class="score-cell"><b>${p.totals.score}</b><div class="bar"><span style="width: ${width}%"></span></div></div></td>
       <td>${p.items.length}</td>
-      <td>${duration(p.totals.used)} / ${duration(p.totals.budget)}</td>
-      <td>${p.totals.travel} min</td>
+      <td>${duration(p.totals.used + p.totals.exit)} / ${duration(p.totals.budget)}</td>
+      <td>${p.totals.travel + p.totals.exit} min</td>
       <td>${feasible}</td></tr>`;
   }
   byId("compare-table").innerHTML = rows + "</tbody>";
@@ -616,8 +633,12 @@ function startWalk(plan) {
     clock = item.end;
     loc = item.location;
   }
+  const exit = plan.totals.exit_route;
+  walk.exit = exit.length > 1
+    ? { route: exit, points: exit.map(centre), leave: clock, arrive: clock + plan.totals.exit }
+    : null;
   walk.t0 = t0;
-  walk.t1 = clock;
+  walk.t1 = clock + plan.totals.exit;
   // screen time is per event, not per minute: a 2-minute walk stays visible and a 90-minute tour doesn't drag
   walk.segs = [];
   let at = 0.5;
@@ -631,6 +652,7 @@ function startWalk(plan) {
     seg(leg.arrive, leg.start, 0.25);
     seg(leg.start, leg.end, 0.8);
   }
+  if (walk.exit) seg(walk.exit.leave, walk.exit.arrive, 0.5 + 0.12 * plan.totals.exit);
   walk.scene = makeScene(byId("walk-canvas"), drawMuseum, at + 1);
   walk.scene.button = byId("walk-play");
 
@@ -659,6 +681,11 @@ function positionAt(minute) {
     last = leg.points[leg.points.length - 1];
     if (minute < leg.end) return { pos: last, leg, moving: false, inside: true };
   }
+  const out = walk.exit;
+  if (out && minute < out.arrive) {
+    return { pos: alongPath(out.points, Math.max(0, (minute - out.leave) / (out.arrive - out.leave))), leg: null, moving: false, exiting: true };
+  }
+  if (out) last = out.points[out.points.length - 1];
   return { pos: last, leg: walk.legs[walk.legs.length - 1] || null, moving: false, done: true };
 }
 
@@ -741,6 +768,7 @@ function drawMuseum(scene) {
       else if (minute >= leg.end) s.done = true;
       if (minute >= leg.arrive) use(leg.route);
     });
+    if (walk.exit && minute >= walk.exit.arrive) use(walk.exit.route);
   }
 
   ctx.save();
@@ -836,6 +864,7 @@ function drawMuseum(scene) {
   byId("walk-clock").textContent = fmt(Math.round(minute));
   let status = "Arriving at the entrance";
   if (now.done) status = `Day over · ${walk.plan.totals.score} points`;
+  else if (now.exiting) status = `Walking to the exit · ${walk.plan.totals.exit} min`;
   else if (now.moving) status = `Walking to ${now.leg.item.location} · ${now.leg.item.travel} min`;
   else if (now.inside) status = `${now.leg.item.name} · until ${fmt(now.leg.end)}`;
   else if (now.leg === null && walk.legs[0] && minute < walk.legs[0].leave) status = "Waiting at the entrance";
@@ -914,6 +943,10 @@ function drawVisitor(ctx, minute, now, time) {
     const age = Math.max(0, Math.min(1, (minute - leg.arrive) / 90));
     ctx.strokeStyle = `rgba(${C.hot}, ${0.95 - 0.6 * age})`;
     trace(ctx, leg.points, f);
+  }
+  if (walk.exit && minute > walk.exit.leave) {
+    ctx.strokeStyle = `rgba(${C.hot}, 0.95)`;
+    trace(ctx, walk.exit.points, Math.min(1, (minute - walk.exit.leave) / Math.max(1, walk.exit.arrive - walk.exit.leave)));
   }
   ctx.setLineDash([]);
 
@@ -1320,11 +1353,19 @@ function say(text) {
 byId("hours").addEventListener("input", updateTimeLimit);
 byId("start-time").addEventListener("change", updateTimeLimit);
 byId("break").addEventListener("change", updateTimeLimit);
+byId("shop-last").addEventListener("change", updateTimeLimit);
 byId("category-list").addEventListener("change", renderActivities);
 byId("activity-list").addEventListener("change", event => {
   priority[event.target.dataset.id] = Number(event.target.value);
   renderActivities();
 });
 byId("plan-form").addEventListener("submit", generatePlan);
+byId("free-time").querySelector("button").addEventListener("click", () => {
+  for (const key in result.plans) result.plans[key] = result.plans[key].fill || result.plans[key];
+  say(`Plan ready: ${result.plans[chosenAlgo].items.length} stops, ${result.plans[chosenAlgo].totals.score} points`);
+  showItinerary();
+  showComparison();
+  showScenes();
+});
 byId("route-form").addEventListener("submit", findRoute);
 loadData();
