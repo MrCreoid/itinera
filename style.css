@@ -985,6 +985,22 @@ details[open] summary {
   color: var(--muted);
 }
 
+.free-time {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px 20px;
+  border: 1px dashed var(--sand);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.free-time p {
+  flex: 1 1 280px;
+  margin: 0;
+}
 .empty {
   display: grid;
   justify-items: center;

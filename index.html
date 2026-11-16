@@ -103,6 +103,13 @@
               </div>
               <span class="field-hint">Kept at the time you pick; every plan is built around it.</span>
             </div>
+            <div class="field">
+              <span class="field-label">Before you leave</span>
+              <div class="chips">
+                <label class="chip"><input type="checkbox" id="shop-last"><svg class="icon"><use href="#i-cup"/></svg>End at the Museum Shop</label>
+              </div>
+              <span class="field-hint">The shop is by the entrance, so it is always the last stop.</span>
+            </div>
           </fieldset>
 
           <fieldset class="step">
@@ -196,6 +203,11 @@
         <p id="result-title" class="lead-sm"></p>
       </div>
       <div id="totals" class="metrics"></div>
+
+      <div id="free-time" class="free-time" hidden>
+        <p></p>
+        <button type="button" class="btn btn-small">Add them to my plan</button>
+      </div>
 
       <div id="no-plan" class="empty" hidden>
         <svg class="icon"><use href="#i-alert"/></svg>

@@ -74,6 +74,7 @@ const ACTIVITIES = DATA.map(([name, category, location, duration, start, score],
 
 // activities a visitor can pin to a time of their choice as a meal break
 const BREAKS = ACTIVITIES.filter((a) => a.location === "Museum Café").map((a) => a.id);
+const SHOP = ACTIVITIES.find((a) => a.name === "Museum Shop").id;
 
 const GRAPH = Object.fromEntries(LOCATIONS.map((loc) => [loc, []]));
 for (const [a, b, w] of PATHS) {
@@ -208,10 +209,9 @@ function simulate(order, startLoc, startTime) {
   return [time, steps];
 }
 
-function buildItinerary(acts, startLoc, startTime, limit) {
-  // Insert activities one by one at the position with the least total walking
-  // (then earliest finish); skip any activity that cannot be placed validly.
-  let order = [];
+function buildItinerary(acts, startLoc, startTime, limit, order = []) {
+  // Insert activities one by one (into `order`, if given) at the position with the least
+  // total walking (then earliest finish); skip any activity that cannot be placed validly.
   const missed = [];
   for (const act of acts) {
     let best = null;
@@ -243,6 +243,7 @@ function summarize(order, startLoc, startTime, minutes) {
       score: steps.reduce((s, x) => s + x.value, 0), activity, travel,
       wait: used - activity - travel, used, budget: minutes,
       exit: order.length ? route(order[order.length - 1].location, startLoc)[0] : 0, // walk back to the door
+      exit_route: order.length ? route(order[order.length - 1].location, startLoc)[1] : [],
     },
   };
 }
@@ -284,22 +285,45 @@ function planHybrid(cands, startLoc, startTime, minutes, must) {
   return plan;
 }
 
-function makePlans(startLoc, startTime, minutes, priority, categories, pause) {
+const asActs = (plan) => plan.items.map((s) => ({ ...s, start: s.fixed ? s.start : null }));
+
+function fillFreeTime(plan, extra, startLoc, startTime, minutes) {
+  // Interests come first: keep the plan as it is and only add activities from the
+  // visitor's other interests into the time that is still free. null if none fit.
+  const base = asActs(plan);
+  const [order] = buildItinerary(greedyOrder(extra, false), startLoc, startTime, startTime + minutes, base);
+  if (order.length === base.length) return null;
+  const filled = summarize(order, startLoc, startTime, minutes);
+  filled.added = order.filter((a) => !has(base, a)).map((a) => a.id);
+  filled.left_out = plan.left_out;
+  if (plan.dp) { filled.dp = plan.dp; filled.dropped = plan.dropped; }
+  return filled;
+}
+
+function makePlans(startLoc, startTime, fullMinutes, priority, categories, pause, shopLast = false) {
   // pause = [activity id, minute of day]: a café break the visitor asked for at that time.
   // It becomes a fixed event that every plan must contain.
+  // shopLast: end the visit at the Museum Shop. Its time (and the walk there and back) is kept
+  // aside, the plans are built in what is left, and the shop is added as the last stop.
+  const shop = ACTIVITIES[SHOP - 1];
+  const minutes = fullMinutes - (shopLast ? shopReserve(startLoc) : 0);
   const limit = startTime + minutes;
   let must = [];
   if (pause) {
     const act = ACTIVITIES[pause[0] - 1];
     must = [{ ...act, value: act.score * ((priority[act.id] ?? 2) || 2), start: pause[1], end: pause[1] + act.duration }];
   }
-  const cands = [], outside = [];
+  const cands = [], outside = [], extra = []; // extra: fits the visit but not the chosen interests
   for (let act of ACTIVITIES) {
     const weight = priority[act.id] ?? 2;
     if (must.length && BREAKS.includes(act.id)) continue; // the pinned break replaces the café's other entries
-    if (weight === 0 || !categories.includes(act.category)) continue;
+    if (weight === 0 || (shopLast && act.id === SHOP)) continue;
     act = { ...act, value: act.score * weight };
-    if (act.start === null) cands.push(act);
+    if (!categories.includes(act.category)) {
+      const fits = act.start === null || (!(must.length && act.start < must[0].end && act.end > must[0].start)
+        && act.start >= startTime && act.end <= limit && startTime + route(startLoc, act.location)[0] <= act.start);
+      if (fits) extra.push(act);
+    } else if (act.start === null) cands.push(act);
     else if (must.length && act.start < must[0].end && act.end > must[0].start) {
       outside.push({ name: act.name, reason: "Clashes with your café break" });
     } else if (act.start < startTime || act.end > limit) {
@@ -314,10 +338,26 @@ function makePlans(startLoc, startTime, minutes, priority, categories, pause) {
     greedy_ratio: planGreedy(cands, true, startLoc, startTime, minutes, must),
     hybrid: planHybrid(cands, startLoc, startTime, minutes, must),
   };
-  for (const plan of Object.values(plans)) plan.left_out = outside.concat(plan.left_out);
+  for (const plan of Object.values(plans)) {
+    plan.left_out = outside.concat(plan.left_out);
+    plan.fill = fillFreeTime(plan, extra, startLoc, startTime, minutes);
+    if (shopLast) {
+      const last = { ...shop, value: shop.score * ((priority[SHOP] ?? 2) || 2) };
+      for (const p of [plan, plan.fill]) {
+        if (p) Object.assign(p, summarize(asActs(p).concat(last), startLoc, startTime, fullMinutes));
+      }
+    }
+  }
   const candidates = cands.map(({ id, name, location, duration, value, start, end }) => ({ id, name, location, duration, value, start, end }));
   return { start_time: startTime, candidates, plans };
 }
+
+// minutes kept aside for the shop at the end: its visit plus the walk there and back to the door
+// (by the triangle inequality this always covers going last stop -> shop -> door)
+const shopReserve = (startLoc) => {
+  const shop = ACTIVITIES[SHOP - 1];
+  return shop.duration + route(startLoc, shop.location)[0] + route(shop.location, startLoc)[0];
+};
 
 // ---------- Request validation (was server.py's read_plan) ----------
 
@@ -350,6 +390,11 @@ function readPlan(data) {
     priority[Number(key)] = value;
   }
 
+  const shopLast = data.shop_last ?? false;
+  if (typeof shopLast !== "boolean") throw new Error("shop_last must be true or false.");
+  const reserve = shopLast ? shopReserve(startLoc) : 0;
+  if (reserve > minutes) throw new Error("There is not enough time to end at the Museum Shop.");
+
   let pause = null;
   const brk = data.break;
   if (brk != null) {
@@ -357,12 +402,12 @@ function readPlan(data) {
     const act = ACTIVITIES[brk.id - 1];
     const at = toMin(brk.time ?? "");
     const walkIn = route(startLoc, act.location)[0];
-    if (at < startTime + walkIn || at + act.duration + walkIn > startTime + minutes) {
+    if (at < startTime + walkIn || at + act.duration + walkIn > startTime + minutes - reserve) {
       throw new Error("Your café break does not fit inside your visit. Pick another time.");
     }
     pause = [brk.id, at];
   }
-  return [startLoc, startTime, minutes, priority, categories, pause];
+  return [startLoc, startTime, minutes, priority, categories, pause, shopLast];
 }
 
 // Same three endpoints server.py served, with a fetch-shaped result so script.js barely changes.

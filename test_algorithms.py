@@ -105,6 +105,33 @@ class AlgorithmTests(unittest.TestCase):
             self.assertLessEqual(last["end"] + plan["totals"]["exit"], 960)
             self.assertEqual(plan["totals"]["exit"], A.ROUTES[(last["location"], "Entrance Hall")][0])
 
+    def test_free_time_is_filled_from_other_interests(self):
+        plans = A.make_plans("Entrance Hall", 600, 360, {}, ["Ancient History"], (20, 780))["plans"]
+        for plan in plans.values():
+            fill = plan["fill"]
+            ids = [s["id"] for s in fill["items"]]
+            self.assertEqual([i for i in ids if i not in fill["added"]], [s["id"] for s in plan["items"]])  # interests kept
+            self.assertTrue(fill["added"])
+            self.assertTrue(all(A.ACTIVITIES[i - 1]["category"] != "Ancient History" for i in fill["added"]))
+            self.assertLessEqual(fill["totals"]["used"] + fill["totals"]["exit"], 360)
+            self.assertGreater(fill["totals"]["used"], plan["totals"]["used"])
+        full = A.make_plans("Entrance Hall", 600, 360, {}, A.CATEGORIES)["plans"]
+        self.assertTrue(all(p["fill"] is None for p in full.values()))
+
+    def test_shop_last_and_exit_route(self):
+        for cats, pause in ((A.CATEGORIES, None), (["Ancient History"], (20, 780)), (["Hands-on"], None)):
+            plans = A.make_plans("Entrance Hall", 600, 360, {}, cats, pause, True)["plans"]
+            for plan in [p for p in plans.values()] + [p["fill"] for p in plans.values() if p["fill"]]:
+                ids = [s["id"] for s in plan["items"]]
+                self.assertEqual(ids[-1], A.SHOP)
+                self.assertEqual(ids.count(A.SHOP), 1)
+                t = plan["totals"]
+                self.assertLessEqual(t["used"] + t["exit"], 360)
+                self.assertEqual(t["exit_route"], A.ROUTES[(plan["items"][-1]["location"], "Entrance Hall")][1])
+        plan = A.make_plans("Entrance Hall", 600, 360, {}, ["Ancient History"])["plans"]["hybrid"]
+        self.assertEqual(plan["totals"]["exit_route"][-1], "Entrance Hall")
+        self.assertEqual(len(plan["totals"]["exit_route"]) > 1, plan["totals"]["exit"] > 0)
+
 
 class ServerTests(unittest.TestCase):
     @classmethod
