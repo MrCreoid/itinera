@@ -5,7 +5,8 @@ Greedy, 0/1 Knapsack DP, Weighted Interval Scheduling, Dijkstra, sorting and bin
 
 ## Run
 
-Needs only Python 3 (no packages to install).
+Live site: https://mrcreoid.github.io/itinera/ (runs entirely in the browser via `algorithms.js`,
+a port of `algorithms.py`). Or run the Python version locally; it needs only Python 3.
 
 ```
 python3 server.py
@@ -23,7 +24,8 @@ python3 -m unittest -v test_algorithms
 
 | File | Purpose |
 |------|---------|
-| `algorithms.py` | Museum dataset, opening hours and all algorithms |
+| `algorithms.py` | Museum dataset, opening hours and all algorithms (reference implementation) |
+| `algorithms.js` | Same algorithms and request checks in JavaScript, so the site works on GitHub Pages |
 | `server.py` | Serves the website and the JSON API (`http.server`) |
 | `index.html` | Page structure |
 | `style.css` | Styling |

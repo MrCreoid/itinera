@@ -55,10 +55,10 @@ function checkedCategories() {
 
 async function loadData() {
   try {
-    const res = await fetch("/api/data");
+    const res = await api("/api/data");
     data = await res.json();
   } catch (err) {
-    alert("Could not reach the Python server. Start it with: python3 server.py");
+    alert("Could not load the museum data.");
     return;
   }
 
@@ -211,7 +211,7 @@ async function generatePlan(event) {
   button.disabled = true;
   say("Working out three plans…");
   try {
-    const res = await fetch("/api/plan", {
+    const res = await api("/api/plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -223,7 +223,7 @@ async function generatePlan(event) {
     }
     result = json;
   } catch (err) {
-    showError("Could not reach the server. Is server.py running?");
+    showError("Something went wrong while planning.");
     return;
   } finally {
     button.disabled = false;
@@ -365,11 +365,11 @@ async function findRoute(event) {
   const to = encodeURIComponent(byId("route-to").value);
   const out = byId("route-result");
   try {
-    const res = await fetch(`/api/route?from=${from}&to=${to}`);
+    const res = await api(`/api/route?from=${from}&to=${to}`);
     const json = await res.json();
     out.textContent = res.ok ? `${json.path.join(" → ")} · ${json.minutes} min` : json.error;
   } catch (err) {
-    out.textContent = "Could not reach the server.";
+    out.textContent = "Could not find a route.";
   }
 }
 
