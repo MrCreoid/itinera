@@ -156,12 +156,19 @@ class ServerTests(unittest.TestCase):
     def test_static_and_data(self):
         with urlopen(self.url + "/") as res:
             self.assertIn(b'id="plan-form"', res.read())
+        with urlopen(self.url + "/algorithms.js") as res:
+            self.assertEqual(res.status, 200)
         with urlopen(self.url + "/api/data") as res:
             self.assertEqual(len(json.loads(res.read())["activities"]), len(A.ACTIVITIES))
 
     def test_source_files_not_served(self):
         with self.assertRaises(HTTPError):
             urlopen(self.url + "/server.py")
+
+    def test_favicon_is_not_an_error(self):
+        req = Request(self.url + "/favicon.ico", method="HEAD")
+        with urlopen(req) as res:
+            self.assertEqual(res.status, 204)
 
     def test_plan_matches_python(self):
         body = {"hours": 6, "start_time": "10:00", "start_location": "Entrance Hall",

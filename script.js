@@ -22,6 +22,11 @@ let chosenAlgo = "hybrid";
 let cand = {}; // candidate id -> activity, for the current result
 const priority = {};
 
+// Fallback to backend server fetch if algorithms.js is not loaded
+if (typeof api === "undefined") {
+  window.api = (url, opts) => fetch(url, opts);
+}
+
 function byId(id) {
   return document.getElementById(id);
 }

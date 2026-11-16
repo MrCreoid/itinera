@@ -6,12 +6,16 @@ from urllib.parse import urlparse, parse_qs
 import algorithms
 
 FOLDER = os.path.dirname(os.path.abspath(__file__))
+HOST = os.environ.get("HOST", "0.0.0.0")
+PORT = int(os.environ.get("PORT", "8000"))
 # only these files are served, so the Python sources stay private
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
     "/script.js": ("script.js", "text/javascript; charset=utf-8"),
+    "/algorithms.js": ("algorithms.js", "text/javascript; charset=utf-8"),
+    "/favicon.ico": (None, "image/x-icon"),
 }
 
 
@@ -75,18 +79,32 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def send_json(self, status, obj):
         self.send(status, json.dumps(obj).encode(), "application/json")
 
+    def handle_static(self, path):
+        if path not in STATIC:
+            return False
+        name, kind = STATIC[path]
+        if name is None:
+            self.send_response(204)
+            self.send_header("Content-Type", kind)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return True
+        with open(os.path.join(FOLDER, name), "rb") as f:
+            body = f.read()
+        self.send(200, body, kind)
+        return True
+
     def do_GET(self):
         url = urlparse(self.path)
-        if url.path in STATIC:
-            name, kind = STATIC[url.path]
-            with open(os.path.join(FOLDER, name), "rb") as f:
-                self.send(200, f.read(), kind)
-        elif url.path == "/api/data":
+        if self.handle_static(url.path):
+            return
+        if url.path == "/api/data":
             self.send_json(200, {
                 "activities": algorithms.ACTIVITIES, "locations": algorithms.LOCATIONS,
                 "categories": algorithms.CATEGORIES, "paths": algorithms.PATHS,
@@ -104,6 +122,15 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_json(404, {"error": "Not found."})
 
+    def do_HEAD(self):
+        url = urlparse(self.path)
+        if self.handle_static(url.path):
+            return
+        self.send_response(404)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_POST(self):
         if self.path != "/api/plan":
             self.send_json(404, {"error": "Not found."})
@@ -120,8 +147,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("127.0.0.1", 8000), Handler)
-    print("Server running at http://localhost:8000 (press Ctrl+C to stop)")
+    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    print(f"Server running at http://localhost:{PORT} (press Ctrl+C to stop)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
