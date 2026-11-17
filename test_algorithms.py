@@ -165,6 +165,7 @@ class ServerTests(unittest.TestCase):
         with self.assertRaises(HTTPError):
             urlopen(self.url + "/server.py")
 
+
     def test_favicon_is_not_an_error(self):
         req = Request(self.url + "/favicon.ico", method="HEAD")
         with urlopen(req) as res:
