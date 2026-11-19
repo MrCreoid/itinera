@@ -108,16 +108,20 @@ function dijkstra(source) {
   return [dist, prev];
 }
 
-function shortestRoute(a, b) {
-  const [dist, prev] = dijkstra(a);
+function pathTo(prev, a, b) {
+  // follow prev back from b to the source a
   const path = [b];
   while (path[path.length - 1] !== a) path.push(prev[path[path.length - 1]]);
   path.reverse();
-  return [dist[b], path];
+  return path;
 }
 
+// one Dijkstra run per room gives the walking time from it to every room
 const ROUTES = {};
-for (const a of LOCATIONS) for (const b of LOCATIONS) ROUTES[a + "|" + b] = shortestRoute(a, b);
+for (const a of LOCATIONS) {
+  const [dist, prev] = dijkstra(a);
+  for (const b of LOCATIONS) ROUTES[a + "|" + b] = [dist[b], pathTo(prev, a, b)];
+}
 const route = (a, b) => ROUTES[a + "|" + b];
 
 // ---------- Greedy ----------

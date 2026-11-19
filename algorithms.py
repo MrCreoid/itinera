@@ -105,19 +105,21 @@ def dijkstra(source):
     return dist, prev
 
 
-def shortest_route(a, b):
-    dist, prev = dijkstra(a)
+def path_to(prev, a, b):
+    # follow prev back from b to the source a
     path = [b]
     while path[-1] != a:
         path.append(prev[path[-1]])
     path.reverse()
-    return dist[b], path
+    return path
 
 
+# one Dijkstra run per room gives the walking time from it to every room
 ROUTES = {}
 for a in LOCATIONS:
+    dist, prev = dijkstra(a)
     for b in LOCATIONS:
-        ROUTES[(a, b)] = shortest_route(a, b)
+        ROUTES[(a, b)] = (dist[b], path_to(prev, a, b))
 
 
 # ---------- Greedy ----------
