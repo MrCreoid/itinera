@@ -10,6 +10,17 @@ Interval Scheduling and Dijkstra, then replays every decision it made as an anim
 The museum has 10 rooms, 14 corridors and 22 activities (10 timed tours, 12 anytime visits),
 and is open 10:00–18:00.
 
+## Tech stack
+
+- **Frontend:** HTML, CSS and vanilla JavaScript (Canvas for the map, walk and 3D landscape); no frameworks, no build step
+- **Algorithms:** Python 3 reference implementation (`algorithms.py`) and a JavaScript port (`algorithms.js`) that runs in the browser
+- **Local server:** Python standard library `http.server` (no third-party packages)
+- **Tests:** Python `unittest`
+- **Hosting:** GitHub Pages
+
+No login, database, API keys or environment variables are used, so there are no demo
+credentials and no `.env` file is needed.
+
 ## What it does
 
 - **Plan your visit** – arrival time, length of visit (slider, capped at closing time), one or
@@ -37,15 +48,20 @@ and is open 10:00–18:00.
 The site is static and runs entirely in the browser (`algorithms.js`). Open the live link
 above, or open `index.html` from any static server.
 
-The Python version is the reference implementation and needs only Python 3:
+To run it locally you need only Python 3.8+ (nothing to install):
 
-```
-python3 server.py
-```
+1. Clone the repository:
+   ```
+   git clone https://github.com/MrCreoid/itinera.git
+   cd itinera
+   ```
+2. Start the server (the Python reference implementation):
+   ```
+   python3 server.py
+   ```
+3. Open http://localhost:8000 in your browser.
 
-Then open http://localhost:8000.
-
-Run the tests (15 tests: algorithms, itinerary validity, café break, API and input validation):
+Run the tests (18 tests: algorithms, itinerary validity, café break, API and input validation):
 
 ```
 python3 -m unittest -v test_algorithms
